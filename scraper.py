@@ -1,5 +1,5 @@
 import re
-from urllib.parse import urlparse,urljoin
+from urllib.parse import urlparse,urljoin,urldefrag
 from bs4 import BeautifulSoup
 
 def scraper(url, resp):
@@ -31,6 +31,7 @@ def extract_next_links(url, resp)->list:
         href = tag.get("href")
         if href:
             absolute = urljoin(url, href)
+            absolute = urldefrag(absolute)[0] #supposed to remove frags, does not seem to wrk rn
             links.append(absolute)
 
 
