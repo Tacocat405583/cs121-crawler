@@ -10,7 +10,11 @@ def extract_next_links(url, resp):
 
     links = []
 
+    if resp.status != 200 or not resp.raw_response:
+        return links
+
     soup =  BeautifulSoup(resp.raw_response.content,"html.parser")
+
 
     for tag in soup.find_all("a"):
         href = tag.get("href")
