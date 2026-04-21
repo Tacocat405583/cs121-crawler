@@ -25,7 +25,7 @@ def extract_next_links(url, resp)->list:
     if resp.status != 200 or not resp.raw_response:
         return links
     
-    soup = BeautifulSoup(resp.raw_response.content, "html.parser")
+    soup = BeautifulSoup(resp.raw_response.content, "lxml")
 
     for tag in soup.find_all("a"):
         href = tag.get("href")
