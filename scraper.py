@@ -1,11 +1,31 @@
 import re
-from urllib.parse import urlparse
+from urllib.parse import urlparse,urljoin
+from bs4 import BeautifulSoup
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
 
 def extract_next_links(url, resp):
+
+    links = []
+
+    soup =  BeautifulSoup(resp.raw_response.content,"html.parser")
+
+    for tag in soup.find_all("a"):
+        href = tag.get("href")
+        if href:
+            absolute = urljoin(url,href)
+            links.append(absolute)
+
+
+    return links
+
+
+    
+    
+
+
 
     print(resp.url)
     print(resp.status)
