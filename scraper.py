@@ -1,5 +1,5 @@
 import re
-from urllib.parse import urlparse,urljoin,urldefrag
+from urllib.parse import urlparse,urljoin,urldefrag,urlsplit
 from bs4 import BeautifulSoup
 
 def scraper(url, resp):
@@ -43,7 +43,7 @@ def is_valid(url):
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
     try:
-        parsed = urlparse(url)
+        parsed = urlsplit(url) # changed to urlsplit instead of urlparse, 
         if parsed.scheme not in set(["http", "https"]):
             return False
         return not re.match(
