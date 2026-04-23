@@ -37,8 +37,8 @@ STOP_WORDS = {
 ALLOWED_DOMAINS = (
     ".ics.uci.edu",
     ".cs.uci.edu",
-    ".informatics.uci.edu/",
-    ".stat.uci.edu/"
+    ".informatics.uci.edu",
+    ".stat.uci.edu"
 )
 
 # Accumulated word counts across all crawled pages (stop words excluded)
