@@ -76,6 +76,14 @@ def extract_next_links(url, resp)->list:
     return links
 
 
+# URL Parts
+# https://www.geeksforgeeks.org:80/array-data-structure?ref=home-articlecards#what-is-array
+# |_____|  |__________________|  |__| |________________| | |__________________| |__________|
+# Scheme      Domain Name        Port  Path to the File  ?     Parameters        Fragment
+#                |___________________________|
+#                           Authority
+
+
 def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
@@ -90,9 +98,23 @@ def is_valid(url):
         for domain in ALLOWED_DOMAINS:
             if parsed.netloc.endswith(domain):
                 allowed = True
-                break
+                break        
         if not allowed:
             return False
+        
+
+        #checking page count 
+        if parsed.path.startswith("/page"):
+            return False
+        
+
+        #This is to stop teh doku.php do queries
+        #NEW ADDITION TESTING
+        if "/doku.php" in parsed.path:
+            bad_stuff = ("do=","idx=")
+            query = parsed.query.lower() #DO -> do
+            if any(bad in query for bad in bad_stuff):
+                return False
         
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
