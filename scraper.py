@@ -81,9 +81,19 @@ def is_valid(url):
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
     try:
-        parsed = urlsplit(url) # changed to urlsplit instead of urlparse, 
+        parsed = urlsplit(url) # return named tuple 
         if parsed.scheme not in set(["http", "https"]):
             return False
+        allowed = False
+
+        #If domain ends with allowed then pass
+        for domain in ALLOWED_DOMAINS:
+            if parsed.netloc.endswith(domain):
+                allowed = True
+                break
+        if not allowed:
+            return False
+        
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
