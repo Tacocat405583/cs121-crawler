@@ -60,6 +60,10 @@ def extract_next_links(url, resp)->list:
 
     links = []
 
+    #if over 10 mb we dont scan it for now, I think this works rn
+    if len(resp.raw_response.content) > 10000000:
+        return False
+
     if resp.status != 200 or not resp.raw_response:
         return links
     
