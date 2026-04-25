@@ -1,6 +1,9 @@
 import re
+import atexit
+import json
 from urllib.parse import urlparse,urljoin,urldefrag,urlsplit
 from bs4 import BeautifulSoup
+from tokenizer import tokenize,compute_word_frequencies
 
 #Stop Words
 
@@ -38,6 +41,16 @@ ALLOWED_DOMAINS = (
     ".stat.uci.edu/"
 )
 
+#Page Length  Max
+
+WORD_FREQUENCIES = {}
+
+
+def save_frequencies():
+    with open("word_frequencies.json", "w") as f:
+        json.dump(WORD_FREQUENCIES, f)
+
+atexit.register(save_frequencies)
 
 
 def scraper(url, resp):
@@ -69,12 +82,25 @@ def extract_next_links(url, resp)->list:
     
     soup = BeautifulSoup(resp.raw_response.content, "lxml")
 
+    text = soup.get_text()
+    tokens = tokenize(string=text)
+    words = compute_word_frequencies(tokens=tokens)
+    
+    for word, count in words.items():
+        if word not in STOP_WORDS:
+            WORD_FREQUENCIES[word] = WORD_FREQUENCIES.get(word, 0) + count
+
+
+
     for tag in soup.find_all("a"):
         href = tag.get("href")
         if href:
             absolute = urljoin(url, href)
             absolute = urldefrag(absolute)[0] #supposed to remove frags, does not seem to wrk rn
             links.append(absolute)
+
+
+    
 
 
     return links
