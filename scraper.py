@@ -5,8 +5,7 @@ from urllib.parse import urlparse,urljoin,urldefrag,urlsplit
 from bs4 import BeautifulSoup
 from tokenizer import tokenize,compute_word_frequencies
 
-#Stop Words
-
+# English stop words to exclude from frequency counts
 STOP_WORDS = {
     "a", "about", "above", "after", "again", "against", "all", "am", "an",
     "and", "any", "are", "aren't", "as", "at", "be", "because", "been",
@@ -32,21 +31,23 @@ STOP_WORDS = {
     "yours", "yourself", "yourselves",
 }
 
-# Allowed Domains
-
+# Only crawl URLs whose netloc ends with one of these
 ALLOWED_DOMAINS = (
     ".ics.uci.edu",
-    "cs.uci.edu",
+    ".cs.uci.edu",
     ".informatics.uci.edu/",
     ".stat.uci.edu/"
 )
 
-#Page Length  Max
-
+# Accumulated word counts across all crawled pages (stop words excluded)
 WORD_FREQUENCIES = {}
+
+# Set of unique defragmented URLs seen so far
+UNIQUE_PAGES = set()
 
 
 def save_frequencies():
+    # Called automatically on exit (including Ctrl+C) via atexit
     with open("word_frequencies.json", "w") as f:
         json.dump(WORD_FREQUENCIES, f)
 
@@ -57,9 +58,8 @@ def scraper(url, resp):
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
 
-def extract_next_links(url, resp)->list:
 
-    # Implementation required.
+def extract_next_links(url, resp) -> list:
     # url: the URL that was used to get the page
     # resp.url: the actual url of the page
     # resp.status: the status code returned by the server. 200 is OK, you got the page. Other numbers mean that there was some kind of problem.
@@ -69,39 +69,38 @@ def extract_next_links(url, resp)->list:
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
 
-
-
     links = []
 
-    #if over 10 mb we dont scan it for now, I think this works rn
-    if len(resp.raw_response.content) > 10000000:
-        return False
-
+    # Skip pages that didn't load successfully
     if resp.status != 200 or not resp.raw_response:
         return links
-    
+
+    # Skip pages over 10MB to avoid memory issues and low-value content
+    if len(resp.raw_response.content) > 10000000:
+        return links
+
     soup = BeautifulSoup(resp.raw_response.content, "lxml")
 
+    # Extract visible text and count word frequencies for this page
     text = soup.get_text()
     tokens = tokenize(string=text)
     words = compute_word_frequencies(tokens=tokens)
-    
+
+    # Track this page as visited (fragment stripped so #section variants collapse)
+    UNIQUE_PAGES.add(urldefrag(url)[0])
+
+    # Merge this page's word counts into the global tally, skipping stop words
     for word, count in words.items():
         if word not in STOP_WORDS:
             WORD_FREQUENCIES[word] = WORD_FREQUENCIES.get(word, 0) + count
 
-
-
+    # Collect all anchor hrefs, resolve to absolute URLs, strip fragments
     for tag in soup.find_all("a"):
         href = tag.get("href")
         if href:
             absolute = urljoin(url, href)
-            absolute = urldefrag(absolute)[0] #supposed to remove frags, does not seem to wrk rn
+            absolute = urldefrag(absolute)[0]
             links.append(absolute)
-
-
-    
-
 
     return links
 
@@ -115,37 +114,41 @@ def extract_next_links(url, resp)->list:
 
 
 def is_valid(url):
-    # Decide whether to crawl this url or not. 
+    # Decide whether to crawl this url or not.
     # If you decide to crawl it, return True; otherwise return False.
-    # There are already some conditions that return False.
     try:
-        parsed = urlsplit(url) # return named tuple 
+        parsed = urlsplit(url)
+
+        # Only follow http/https links
         if parsed.scheme not in set(["http", "https"]):
             return False
-        allowed = False
 
-        #If domain ends with allowed then pass
+        # Reject URLs outside the allowed domains
+        allowed = False
         for domain in ALLOWED_DOMAINS:
             if parsed.netloc.endswith(domain):
                 allowed = True
-                break        
+                break
         if not allowed:
             return False
-        
 
-        #checking page count 
-        if parsed.path.startswith("/page"):
+        # Avoid paginated archives beyond page 20 (low-value duplicate content)
+        page_match = re.search(r"/page/(\d+)", parsed.path)
+        if page_match and int(page_match.group(1)) > 20:
             return False
-        
 
-        #This is to stop teh doku.php do queries
-        #NEW ADDITION TESTING
+        # Long query strings indicate a URL trap (e.g. parameters appending themselves)
+        if len(parsed.query) > 200:
+            return False
+
+        # Block DokuWiki action/index queries that generate infinite URL variants
         if "/doku.php" in parsed.path:
-            bad_stuff = ("do=","idx=")
-            query = parsed.query.lower() #DO -> do
-            if any(bad in query for bad in bad_stuff):
+            bad_params = ("do=", "idx=")
+            query = parsed.query.lower()
+            if any(p in query for p in bad_params):
                 return False
-        
+
+        # Reject static asset and binary file extensions
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
@@ -157,5 +160,5 @@ def is_valid(url):
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
 
     except TypeError:
-        print ("TypeError for ", parsed)
+        print("TypeError for ", parsed)
         raise
