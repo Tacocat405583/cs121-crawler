@@ -158,8 +158,6 @@ def is_valid(url):
         # This is to skip pages with insufficient access in doku.php
         if "/group:support" in parsed.path:
             return False
-        
-        
 
         # Avoid paginated archives beyond page 20 (low-value duplicate content)
         page_match = re.search(r"/page/(\d+)", parsed.path)
@@ -177,6 +175,10 @@ def is_valid(url):
         if any(len(v) > 1 for v in parse_qs(parsed.query).values()):
             return False
 
+        # Block Apache directory listing sort variants (same content, different order)
+        if "C=" in parsed.query and "O=" in parsed.query:
+            return False
+
         # Block DokuWiki action/index queries that generate infinite URL variants
         if "/doku.php" in parsed.path:
             bad_params = ("do=", "idx=")
@@ -189,7 +191,7 @@ def is_valid(url):
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
-            + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
+            + r"|ps|eps|tex|ppt|pptx|pps|ppsx|doc|docx|xls|xlsx|names" #pptx added
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
