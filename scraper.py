@@ -1,8 +1,10 @@
 import re
 import atexit
 import json
-from urllib.parse import urlparse,urljoin,urldefrag,urlsplit
-from bs4 import BeautifulSoup
+import warnings
+from urllib.parse import urlparse,urljoin,urldefrag,urlsplit,parse_qs
+from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
+warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 from tokenizer import tokenize,compute_word_frequencies
 
 # English stop words to exclude from frequency counts
@@ -46,12 +48,25 @@ WORD_FREQUENCIES = {}
 UNIQUE_PAGES = set()
 
 
-def save_frequencies():
+# Pages with fewer tokens than this are considered low information and skipped
+LOW_INFO_THRESHOLD = 50
+
+# These domains are leading to nothing usefull
+BLOCKED_SUBDOMAINS = {
+    "swiki.ics.uci.edu",
+    "wiki.ics.uci.edu",
+    "helpdesk.ics.uci.edu",
+}
+
+
+def save_data():
     # Called automatically on exit (including Ctrl+C) via atexit
     with open("word_frequencies.json", "w") as f:
         json.dump(WORD_FREQUENCIES, f)
+    with open("unique_pages.json", "w") as f:
+        json.dump(list(UNIQUE_PAGES), f)
 
-atexit.register(save_frequencies)
+atexit.register(save_data)
 
 
 def scraper(url, resp):
@@ -84,6 +99,11 @@ def extract_next_links(url, resp) -> list:
     # Extract visible text and count word frequencies for this page
     text = soup.get_text()
     tokens = tokenize(string=text)
+
+    # Skip low information pages (login pages, empty pages, redirects, etc.)
+    if len(tokens) < LOW_INFO_THRESHOLD:
+        return links
+
     words = compute_word_frequencies(tokens=tokens)
 
     # Track this page as visited (fragment stripped so #section variants collapse)
@@ -131,14 +151,30 @@ def is_valid(url):
                 break
         if not allowed:
             return False
+        
+        if parsed.netloc in BLOCKED_SUBDOMAINS:
+            return False
+        
+        # This is to skip pages with insufficient access in doku.php
+        if "/group:support" in parsed.path:
+            return False
+        
+        
 
         # Avoid paginated archives beyond page 20 (low-value duplicate content)
         page_match = re.search(r"/page/(\d+)", parsed.path)
         if page_match and int(page_match.group(1)) > 20:
             return False
 
-        # Long query strings indicate a URL trap (e.g. parameters appending themselves)
+        # Block WordPress date archive URLs (e.g. /2019, /2019/04, /2019/04/04) for acoi
+        if re.search(r"/\d{4}(/\d{2}){0,2}$", parsed.path):
+            return False
+
+        # Long query strings or repeated parameters indicate a URL trap
         if len(parsed.query) > 200:
+            return False
+        #appeared more than once in the query string
+        if any(len(v) > 1 for v in parse_qs(parsed.query).values()):
             return False
 
         # Block DokuWiki action/index queries that generate infinite URL variants
