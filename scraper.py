@@ -2,10 +2,14 @@ import re
 import atexit
 import json
 import warnings
-from urllib.parse import urlparse,urljoin,urldefrag,urlsplit,parse_qs
+from urllib.parse import urljoin, urldefrag, urlsplit, parse_qs
+
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
+
+from tokenizer import tokenize, compute_word_frequencies
+
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
-from tokenizer import tokenize,compute_word_frequencies
+
 
 # English stop words to exclude from frequency counts
 STOP_WORDS = {
