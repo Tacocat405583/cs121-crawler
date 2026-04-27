@@ -1,5 +1,4 @@
-cbor
-requests
 beautifulsoup4
+cbor
 lxml
-black
+requests
