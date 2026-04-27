@@ -2,10 +2,14 @@ import re
 import atexit
 import json
 import warnings
-from urllib.parse import urlparse,urljoin,urldefrag,urlsplit,parse_qs
+from urllib.parse import urljoin, urldefrag, urlsplit, parse_qs
+
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
+
+from tokenizer import tokenize, compute_word_frequencies
+
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
-from tokenizer import tokenize,compute_word_frequencies
+
 
 # English stop words to exclude from frequency counts
 STOP_WORDS = {
@@ -37,8 +41,8 @@ STOP_WORDS = {
 ALLOWED_DOMAINS = (
     ".ics.uci.edu",
     ".cs.uci.edu",
-    ".informatics.uci.edu/",
-    ".stat.uci.edu/"
+    ".informatics.uci.edu",
+    ".stat.uci.edu"
 )
 
 # Accumulated word counts across all crawled pages (stop words excluded)
@@ -149,16 +153,11 @@ def is_valid(url):
         parsed = urlsplit(url)
 
         # Only follow http/https links
-        if parsed.scheme not in set(["http", "https"]):
+        if parsed.scheme not in {"http", "https"}:
             return False
 
         # Reject URLs outside the allowed domains
-        allowed = False
-        for domain in ALLOWED_DOMAINS:
-            if parsed.netloc.endswith(domain):
-                allowed = True
-                break
-        if not allowed:
+        if not any(parsed.netloc.endswith(domain) for domain in ALLOWED_DOMAINS):
             return False
         
         if parsed.netloc in BLOCKED_SUBDOMAINS:
