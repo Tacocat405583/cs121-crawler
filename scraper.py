@@ -144,12 +144,7 @@ def is_valid(url):
             return False
 
         # Reject URLs outside the allowed domains
-        allowed = False
-        for domain in ALLOWED_DOMAINS:
-            if parsed.netloc.endswith(domain):
-                allowed = True
-                break
-        if not allowed:
+        if not any(parsed.netloc.endswith(domain) for domain in ALLOWED_DOMAINS):
             return False
         
         if parsed.netloc in BLOCKED_SUBDOMAINS:
