@@ -47,6 +47,8 @@ WORD_FREQUENCIES = {}
 # Set of unique defragmented URLs seen so far
 UNIQUE_PAGES = set()
 
+# Tracks the page with the most words: {"url": ..., "count": ...}
+LONGEST_PAGE = {"url": "", "count": 0}
 
 # Pages with fewer tokens than this are considered low information and skipped
 LOW_INFO_THRESHOLD = 50
@@ -65,6 +67,8 @@ def save_data():
         json.dump(WORD_FREQUENCIES, f)
     with open("unique_pages.json", "w") as f:
         json.dump(list(UNIQUE_PAGES), f)
+    with open("longest_page.json", "w") as f:
+        json.dump(LONGEST_PAGE, f)
 
 atexit.register(save_data)
 
@@ -103,6 +107,11 @@ def extract_next_links(url, resp) -> list:
     # Skip low information pages (login pages, empty pages, redirects, etc.)
     if len(tokens) < LOW_INFO_THRESHOLD:
         return links
+
+    # Update longest page if this page has more words than the current max
+    if len(tokens) > LONGEST_PAGE["count"]:
+        LONGEST_PAGE["url"] = urldefrag(url)[0] #dont do [1] thats the fragment
+        LONGEST_PAGE["count"] = len(tokens)
 
     words = compute_word_frequencies(tokens=tokens)
 
@@ -179,7 +188,7 @@ def is_valid(url):
         if "C=" in parsed.query and "O=" in parsed.query:
             return False
 
-        # Block DokuWiki action/index queries that generate infinite URL variants
+        # Block DokuWiki action/index queries that were pissing me off
         if "/doku.php" in parsed.path:
             bad_params = ("do=", "idx=")
             query = parsed.query.lower()
