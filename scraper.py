@@ -140,7 +140,7 @@ def is_valid(url):
         parsed = urlsplit(url)
 
         # Only follow http/https links
-        if parsed.scheme not in set(["http", "https"]):
+        if parsed.scheme not in {"http", "https"}:
             return False
 
         # Reject URLs outside the allowed domains
