@@ -46,3 +46,13 @@ def main():
             lines.append(f"{i:>2}. {word:<20} {count}")
     else:
         lines.append("No data available.")
+
+    report = "\n".join(lines)
+
+    with open("report.txt", "w") as f:
+        f.write(report)
+    print("Report saved to report.txt")
+
+
+if __name__ == "__main__":
+    main()
