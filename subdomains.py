@@ -7,7 +7,7 @@ def main():
         with open('unique_pages.json', 'r') as f:
             urls = json.load(f)
     except FileNotFoundError:
-        print("Error: unique_pages.json not found. Make sure the crawler has run first.")
+        print("Error: unique_pages.json not found.")
         return
 
     subdomain_counts = defaultdict(int)

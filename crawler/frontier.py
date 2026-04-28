@@ -37,12 +37,31 @@ class Frontier(object):
 
     def _parse_save_file(self):
         ''' This function can be overridden for alternate saving techniques. '''
+        from urllib.parse import urldefrag
+        from scraper import UNIQUE_PAGES
+        
         total_count = len(self.save)
         tbd_count = 0
-        for url, completed in self.save.values():
+        repaired_count = 0
+        
+        # list() is required because we are modifying self.save during iteration
+        for urlhash, (url, completed) in list(self.save.items()):
+            if completed:
+                defrag_url = urldefrag(url)[0]
+                if defrag_url not in UNIQUE_PAGES:
+                    # Data was lost in a crash. Revert to incomplete so it gets re-crawled
+                    self.save[urlhash] = (url, False)
+                    completed = False
+                    repaired_count += 1
+                    
             if not completed and is_valid(url):
                 self.to_be_downloaded.append(url)
                 tbd_count += 1
+                
+        if repaired_count > 0:
+            self.save.sync()
+            self.logger.warning(f"Auto-repaired {repaired_count} lost URLs from previous catastrophic crash.")
+            
         self.logger.info(
             f"Found {tbd_count} urls to be downloaded from {total_count} "
             f"total urls discovered.")

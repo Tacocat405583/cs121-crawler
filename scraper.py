@@ -45,14 +45,39 @@ ALLOWED_DOMAINS = (
     ".stat.uci.edu"
 )
 
-# Accumulated word counts across all crawled pages (stop words excluded)
-WORD_FREQUENCIES = {}
+import os
+import glob
 
-# Set of unique defragmented URLs seen so far
-UNIQUE_PAGES = set()
+# Initialize from previous run only if the frontier database exists
+is_resuming = len(glob.glob("frontier.shelve*")) > 0
 
-# Tracks the page with the most words: {"url": ..., "count": ...}
-LONGEST_PAGE = {"url": "", "count": 0}
+if is_resuming:
+    try:
+        with open("word_frequencies.json", "r") as f:
+            WORD_FREQUENCIES = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        WORD_FREQUENCIES = {}
+
+    try:
+        with open("unique_pages.json", "r") as f:
+            UNIQUE_PAGES = set(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        UNIQUE_PAGES = set()
+
+    try:
+        with open("longest_page.json", "r") as f:
+            LONGEST_PAGE = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        LONGEST_PAGE = {"url": "", "count": 0}
+else:
+    # Fresh start! Delete old JSON files to prevent data mixing
+    for stale_file in ["word_frequencies.json", "unique_pages.json", "longest_page.json"]:
+        if os.path.exists(stale_file):
+            os.remove(stale_file)
+            
+    WORD_FREQUENCIES = {}
+    UNIQUE_PAGES = set()
+    LONGEST_PAGE = {"url": "", "count": 0}
 
 # Pages with fewer tokens than this are considered low information and skipped
 LOW_INFO_THRESHOLD = 50
@@ -63,6 +88,8 @@ BLOCKED_SUBDOMAINS = {
     "wiki.ics.uci.edu",
     "helpdesk.ics.uci.edu",
 }
+
+PAGES_SCRAPED_THIS_SESSION = 0
 
 
 def save_data():
@@ -78,8 +105,15 @@ atexit.register(save_data)
 
 
 def scraper(url, resp):
+    global PAGES_SCRAPED_THIS_SESSION
     links = extract_next_links(url, resp)
-    return [link for link in links if is_valid(link)]
+    valid_links = [link for link in links if is_valid(link)]
+    
+    PAGES_SCRAPED_THIS_SESSION += 1
+    if PAGES_SCRAPED_THIS_SESSION % 50 == 0:
+        save_data()
+        
+    return valid_links
 
 
 def extract_next_links(url, resp) -> list:
