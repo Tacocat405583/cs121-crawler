@@ -27,3 +27,13 @@ def main():
         lines.append(f"Total unique pages found: {len(unique_pages)}")
     else:
         lines.append("No data available.")
+
+    # Top 50 words
+    lines.append("\nQuestion 3: Top 50 Most Common Words")
+    lines.append("-" * 40)
+    if word_frequencies is not None:
+        sorted_words = sorted(word_frequencies.items(), key=lambda x: x[1], reverse=True)
+        for i, (word, count) in enumerate(sorted_words[:50], start=1):
+            lines.append(f"{i:>2}. {word:<20} {count}")
+    else:
+        lines.append("No data available.")
