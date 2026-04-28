@@ -1,0 +1,81 @@
+============================================================
+Web Crawler Report
+============================================================
+
+Question 1: Unique Pages
+----------------------------------------
+Total unique pages found: 534
+
+Question 2: Longest Page
+----------------------------------------
+URL: https://cml.ics.uci.edu/category/aiml
+Word count: 25046
+
+Question 3: Top 50 Most Common Words
+----------------------------------------
+ 1. dechter              2132
+ 2. uci                  1549
+ 3. learning             1531
+ 4. rina                 1367
+ 5. ics                  1259
+ 6. search               1197
+ 7. models               1190
+ 8. computer             1186
+ 9. algorithms           1131
+10. pdf                  1079
+11. science              1061
+12. university           974
+13. research             966
+14. 1                    893
+15. information          832
+16. irvine               821
+17. networks             821
+18. dr                   792
+19. california           768
+20. machine              755
+21. data                 752
+22. school               736
+23. abstract             735
+24. can                  724
+25. week                 722
+26. constraint           721
+27. 2                    719
+28. edu                  712
+29. inference            649
+30. center               647
+31. graphical            630
+32. 3                    622
+33. reasoning            601
+34. s                    581
+35. processing           578
+36. intelligence         560
+37. systems              548
+38. first                534
+39. ai                   524
+40. probabilistic        524
+41. artificial           522
+42. based                511
+43. 4                    507
+44. news                 494
+45. model                480
+46. bayesian             468
+47. seminar              459
+48. problems             454
+49. 10                   434
+50. paper                429
+
+Question 4: Subdomains
+----------------------------------------
+Total unique subdomains found: 12
+acoi.ics.uci.edu: 39
+cml.ics.uci.edu: 58
+courselisting.ics.uci.edu: 2
+cs.ics.uci.edu: 2
+industryshowcase.ics.uci.edu: 4
+oai.ics.uci.edu: 1
+stat.ics.uci.edu: 4
+tad.ics.uci.edu: 2
+vision.ics.uci.edu: 5
+www.cs.uci.edu: 1
+www.ics.uci.edu: 415
+www.stat.uci.edu: 1

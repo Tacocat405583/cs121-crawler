@@ -1,4 +1,6 @@
 import json
+from urllib.parse import urlparse
+from collections import defaultdict
 
 
 def load_json(filename):
@@ -44,6 +46,25 @@ def main():
         sorted_words = sorted(word_frequencies.items(), key=lambda x: x[1], reverse=True)
         for i, (word, count) in enumerate(sorted_words[:50], start=1):
             lines.append(f"{i:>2}. {word:<20} {count}")
+    else:
+        lines.append("No data available.")
+
+    # Subdomains
+    lines.append("\nQuestion 4: Subdomains")
+    lines.append("-" * 40)
+    if unique_pages is not None:
+        subdomain_counts = defaultdict(int)
+        for url in unique_pages:
+            parsed = urlparse(url)
+            netloc = parsed.netloc.lower()
+            if ":" in netloc:
+                netloc.split(":")[0]
+            if netloc.endswith(".uci.edu") or netloc == "uci.edu":
+                subdomain_counts[netloc] += 1
+        sorted_subdomains = sorted(subdomain_counts.items(), key=lambda x: x[0])
+        lines.append(f"Total unique subdomains found: {len(sorted_subdomains)}")
+        for subdomain, count in sorted_subdomains:
+            lines.append(f"{subdomain}, {count}")
     else:
         lines.append("No data available.")
 
