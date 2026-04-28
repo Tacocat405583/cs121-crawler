@@ -28,6 +28,15 @@ def main():
     else:
         lines.append("No data available.")
 
+    # Longest page
+    lines.append("\nQuestion 2: Longest Page")
+    lines.append("-" * 40)
+    if longest_page is not None:
+        lines.append(f"URL: {longest_page['url']}")
+        lines.append(f"Word count: {longest_page['count']}")
+    else:
+        lines.append("No data available.")
+
     # Top 50 words
     lines.append("\nQuestion 3: Top 50 Most Common Words")
     lines.append("-" * 40)
