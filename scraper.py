@@ -70,7 +70,8 @@ if is_resuming:
     except (FileNotFoundError, json.JSONDecodeError):
         LONGEST_PAGE = {"url": "", "count": 0}
 else:
-    # Fresh start! Delete old JSON files to prevent data mixing
+    # Fresh start 
+    # Delete old JSON files to prevent data mixing
     for stale_file in ["word_frequencies.json", "unique_pages.json", "longest_page.json"]:
         if os.path.exists(stale_file):
             os.remove(stale_file)
@@ -89,8 +90,6 @@ BLOCKED_SUBDOMAINS = {
     "helpdesk.ics.uci.edu",
 }
 
-PAGES_SCRAPED_THIS_SESSION = 0
-
 
 def save_data():
     # Called automatically on exit (including Ctrl+C) via atexit
@@ -105,15 +104,8 @@ atexit.register(save_data)
 
 
 def scraper(url, resp):
-    global PAGES_SCRAPED_THIS_SESSION
     links = extract_next_links(url, resp)
-    valid_links = [link for link in links if is_valid(link)]
-    
-    PAGES_SCRAPED_THIS_SESSION += 1
-    if PAGES_SCRAPED_THIS_SESSION % 50 == 0:
-        save_data()
-        
-    return valid_links
+    return [link for link in links if is_valid(link)]
 
 
 def extract_next_links(url, resp) -> list:
