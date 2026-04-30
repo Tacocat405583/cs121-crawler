@@ -71,6 +71,8 @@ class Frontier(object):
             return self.to_be_downloaded.pop()
         except IndexError:
             return None
+        
+    #add get next page method
 
     def add_url(self, url):
         url = normalize(url)

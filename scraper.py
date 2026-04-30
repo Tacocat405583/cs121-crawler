@@ -2,6 +2,7 @@ import re
 import atexit
 import json
 import warnings
+import hashlib
 from urllib.parse import urljoin, urldefrag, urlsplit, parse_qs
 
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
@@ -134,9 +135,21 @@ def extract_next_links(url, resp) -> list:
     text = soup.get_text()
     tokens = tokenize(string=text)
 
+
     # Skip low information pages (login pages, empty pages, redirects, etc.)
     if len(tokens) < LOW_INFO_THRESHOLD:
         return links
+    
+    ###LETS WORK ON DUPLICATE DETECTION ---- TEST
+    # hash_object = hashlib.sha256(text.encode())
+    # hex_dig = hash_object.hexdigest()
+    # if hex_dig in HASHES:
+    #     return links
+    # else:
+    #     HASHES.add(hex_dig)
+
+    # NEAR DUPLICATE DETECTION TEST - find near duplicates of a document D -> O(N) comparisons
+    # We should have some threshold
 
     # Update longest page if this page has more words than the current max
     if len(tokens) > LONGEST_PAGE["count"]:
