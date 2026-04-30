@@ -4,8 +4,10 @@ import shelve
 from threading import Thread, RLock
 from queue import Queue, Empty
 
+from urllib.parse import urldefrag
+
 from utils import get_logger, get_urlhash, normalize
-from scraper import is_valid
+from scraper import is_valid, PROCESSED_PAGES
 
 class Frontier(object):
     def __init__(self, config, restart):
@@ -37,8 +39,6 @@ class Frontier(object):
 
     def _parse_save_file(self):
         ''' This function can be overridden for alternate saving techniques. '''
-        from urllib.parse import urldefrag
-        from scraper import UNIQUE_PAGES
         
         total_count = len(self.save)
         tbd_count = 0
@@ -48,7 +48,7 @@ class Frontier(object):
         for urlhash, (url, completed) in list(self.save.items()):
             if completed:
                 defrag_url = urldefrag(url)[0]
-                if defrag_url not in UNIQUE_PAGES:
+                if defrag_url not in PROCESSED_PAGES:
                     # Data was lost in a crash. Revert to incomplete so it gets re-crawled
                     self.save[urlhash] = (url, False)
                     completed = False
