@@ -70,16 +70,23 @@ if is_resuming:
             LONGEST_PAGE = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         LONGEST_PAGE = {"url": "", "count": 0}
+
+    try:
+        with open("hashes.json", "r") as f:
+            HASHES = set(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        HASHES = set()
 else:
     # Fresh start 
     # Delete old JSON files to prevent data mixing
-    for stale_file in ["word_frequencies.json", "unique_pages.json", "longest_page.json"]:
+    for stale_file in ["word_frequencies.json", "unique_pages.json", "longest_page.json", "hashes.json"]:
         if os.path.exists(stale_file):
             os.remove(stale_file)
             
     WORD_FREQUENCIES = {}
     UNIQUE_PAGES = set()
     LONGEST_PAGE = {"url": "", "count": 0}
+    HASHES = set()
 
 # Pages with fewer tokens than this are considered low information and skipped
 LOW_INFO_THRESHOLD = 50
@@ -100,6 +107,8 @@ def save_data():
         json.dump(list(UNIQUE_PAGES), f)
     with open("longest_page.json", "w") as f:
         json.dump(LONGEST_PAGE, f)
+    with open("hashes.json", "w") as f:
+        json.dump(list(HASHES), f)
 
 atexit.register(save_data)
 
@@ -141,12 +150,12 @@ def extract_next_links(url, resp) -> list:
         return links
     
     ###LETS WORK ON DUPLICATE DETECTION ---- TEST
-    # hash_object = hashlib.sha256(text.encode())
-    # hex_dig = hash_object.hexdigest()
-    # if hex_dig in HASHES:
-    #     return links
-    # else:
-    #     HASHES.add(hex_dig)
+    hash_object = hashlib.sha256(text.encode())
+    hex_dig = hash_object.hexdigest()
+    if hex_dig in HASHES:
+        return links
+    else:
+        HASHES.add(hex_dig)
 
     # NEAR DUPLICATE DETECTION TEST - find near duplicates of a document D -> O(N) comparisons
     # We should have some threshold
