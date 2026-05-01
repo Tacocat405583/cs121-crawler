@@ -1,8 +1,7 @@
-from bs4 import BeautifulSoup
 from tokenizer import tokenizer
 
 # Exact duplicate
-HASHES = set()
+SEEN_PAGES = set()
 
 # Near duplicate + config
 FINGERPRINTS = {}
