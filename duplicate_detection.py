@@ -1,4 +1,4 @@
-from tokenizer import tokenizer
+from tokenizer import word_frequencies
 
 # Exact duplicate
 SEEN_PAGES = set()
