@@ -22,5 +22,16 @@ class Crawler(object):
         self.join()
 
     def join(self):
-        for worker in self.workers:
-            worker.join()
+        try:
+            for worker in self.workers:
+                worker.join()
+        except KeyboardInterrupt:
+            print("\n[Ctrl+C detected] Waiting for the current download to finish so we can safely pause.")
+            for worker in self.workers:
+                worker.stop_flag = True
+            for worker in self.workers:
+                worker.join()
+            print("Successfully paused, you can safely resume later.")
+        finally:
+            if hasattr(self, 'frontier') and hasattr(self.frontier, 'save'):
+                self.frontier.save.close()

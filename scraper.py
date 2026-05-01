@@ -1,4 +1,6 @@
 import re
+import os
+import glob
 import atexit
 import json
 import warnings
@@ -46,17 +48,53 @@ ALLOWED_DOMAINS = (
     ".stat.uci.edu"
 )
 
-# Accumulated word counts across all crawled pages (stop words excluded)
-WORD_FREQUENCIES = {}
+# Initialize from previous run only if the frontier database exists
+is_resuming = len(glob.glob("frontier.shelve*")) > 0
 
-# Set of unique defragmented URLs seen so far
-UNIQUE_PAGES = set()
+if is_resuming:
+    try:
+        with open("word_frequencies.json", "r") as f:
+            WORD_FREQUENCIES = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        WORD_FREQUENCIES = {}
 
-#Set of unique hashes
-HASHES = set()
+    try:
+        with open("unique_pages.json", "r") as f:
+            UNIQUE_PAGES = set(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        UNIQUE_PAGES = set()
 
-# Tracks the page with the most words: {"url": ..., "count": ...}
-LONGEST_PAGE = {"url": "", "count": 0}
+    try:
+        with open("longest_page.json", "r") as f:
+            LONGEST_PAGE = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        LONGEST_PAGE = {"url": "", "count": 0}
+
+    try:
+        with open("hashes.json", "r") as f:
+            HASHES = set(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        HASHES = set()
+
+    try:
+        with open("processed_pages.json", "r") as f:
+            PROCESSED_PAGES = set(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        PROCESSED_PAGES = set()
+else:
+    # Fresh start 
+    # Delete old JSON files to prevent data mixing
+    for stale_file in ["word_frequencies.json", "unique_pages.json", "longest_page.json", "hashes.json", "processed_pages.json"]:
+        if os.path.exists(stale_file):
+            os.remove(stale_file)
+            
+    WORD_FREQUENCIES = {}
+    UNIQUE_PAGES = set()
+    LONGEST_PAGE = {"url": "", "count": 0}
+    HASHES = set()
+    PROCESSED_PAGES = set()
+
+PAGES_SCRAPED_THIS_SESSION = 0
 
 # Pages with fewer tokens than this are considered low information and skipped
 LOW_INFO_THRESHOLD = 50
@@ -68,7 +106,6 @@ BLOCKED_SUBDOMAINS = {
     "helpdesk.ics.uci.edu",
 }
 
-
 def save_data():
     # Called automatically on exit (including Ctrl+C) via atexit
     with open("word_frequencies.json", "w") as f:
@@ -77,14 +114,28 @@ def save_data():
         json.dump(list(UNIQUE_PAGES), f)
     with open("longest_page.json", "w") as f:
         json.dump(LONGEST_PAGE, f)
+    with open("hashes.json", "w") as f:
+        json.dump(list(HASHES), f)
+    with open("processed_pages.json", "w") as f:
+        json.dump(list(PROCESSED_PAGES), f)
 
 atexit.register(save_data)
 
-
 def scraper(url, resp):
-    links = extract_next_links(url, resp)
-    return [link for link in links if is_valid(link)]
+    global PAGES_SCRAPED_THIS_SESSION
+    
+    # Track every single URL passed to the scraper (even skips)
+    PROCESSED_PAGES.add(urldefrag(url)[0])
 
+    links = extract_next_links(url, resp)
+    valid_links = [link for link in links if is_valid(link)]
+    
+    # Restore Batch Saving!
+    PAGES_SCRAPED_THIS_SESSION += 1
+    if PAGES_SCRAPED_THIS_SESSION % 50 == 0:
+        save_data()
+        
+    return valid_links
 
 def extract_next_links(url, resp) -> list:
     # url: the URL that was used to get the page

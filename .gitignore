@@ -109,4 +109,8 @@ venv.bak/
 *.full.py
 *.shelve
 
+# crawler file
+frontier.shelve*
+*.db
+Logs/
 report.txt
