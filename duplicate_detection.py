@@ -50,9 +50,9 @@ def is_exact_duplicate(text: str) -> bool:
 #
 #    return totals
 
-def simhash(text: str) -> int:
+def simhash(tokens: list[str]) -> int:
     # 1: process doc into a set of features with assoc weights
-    word_weights = compute_word_frequencies(text)
+    word_weights = compute_word_frequencies(tokens)
     vector = [0] * SIMHASH_BITS
     for word, weight in word_weights.items():
         # generate a hash value for each word
