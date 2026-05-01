@@ -18,3 +18,11 @@ def partition_checksum(text: str, num_partitions: int = 2, width: int = 8) -> in
         parsed_hash += f"{text_partitions[i]:0{width}d}"
     
     return int(parsed_hash)
+
+def is_exact_duplicate(text: str) -> bool:
+    page_checksum = partition_checksum(text)
+    if page_checksum in SEEN_PAGES:
+        return True
+    else:
+        SEEN_PAGES.add(page_checksum)
+        return False
