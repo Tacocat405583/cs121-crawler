@@ -191,6 +191,14 @@ def is_valid(url):
         # Block WordPress date archive URLs (e.g. /2019, /2019/04, /2019/04/04) for acoi
         if re.search(r"/\d{4}(/\d{2}){0,2}$", parsed.path):
             return False
+        
+        # Block dash-separated date archive URLs (e.g. /2013-09, /2012-08)
+        if re.search(r"/\d{4}-\d{2}$", parsed.path):
+            return False
+        
+        # Block calendar export URLs (no useful content)
+        if "ical=1" in parsed.query:
+            return False
 
         # Long query strings or repeated parameters indicate a URL trap
         if len(parsed.query) > 200:
