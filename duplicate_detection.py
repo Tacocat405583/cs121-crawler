@@ -5,8 +5,7 @@ SEEN_PAGES = set()
 
 # Near duplicate + config
 FINGERPRINTS = {}
-N = 3
-NGRAM_MOD_VALUE = 4
+BITS = 64 #simhash bits
 THRESHOLD = 0.9
 
 def partition_checksum(text: str, num_partitions: int = 2, width: int = 8) -> int:
