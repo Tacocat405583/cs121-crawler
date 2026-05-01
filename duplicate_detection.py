@@ -84,7 +84,7 @@ def simhash_similarity(hashA: int, hashB: int):
 def is_near_duplicate(tokens: list[str], url: str) -> bool:
     sim_print = simhash(tokens)
     for past_print in SIMPRINTS_SET.values():
-        if simhash_similarity(sim_print, past_prints):
+        if simhash_similarity(sim_print, past_print):
             return True
     #no matches in set of sim_prints
     SIMPRINTS_SET[url] = sim_print
