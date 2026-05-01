@@ -26,3 +26,34 @@ def is_exact_duplicate(text: str) -> bool:
     else:
         SEEN_PAGES.add(page_checksum)
         return False
+
+#def compute_word_frequencies(tokens: list[str])->dict[str,int]:
+#   totals = {}
+#
+#    for token in tokens:
+#        if token in totals:
+#            totals[token]+=1
+#        else:
+#            totals[token] = 1
+#
+#    return totals
+
+def simhash(text: str) -> int:
+    # 1: process doc into a set of features with assoc weights
+    word_weights = compute_word_frequencies(text)
+    vector = [0] * BITS
+    for word, weight in word_weights.items():
+        # generate a hash value for each word
+        word_hash = partition_checksum(word)
+            #update components by adding the weight for which corresponding bit
+            for i in range(BITS):
+                if (word_hash >> i) & 1:
+                    vector[i] += weight
+                else:
+                    vector[i] -= weight
+    # gen fingeprint by setting ith bit to 1 if pos else 0
+    fingerprint = 0
+    for i in range(BITS):
+        if vector[i] > 0:
+            fingerprint |= (1 << i)
+    return fingerprint
