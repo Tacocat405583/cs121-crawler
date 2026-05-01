@@ -71,4 +71,12 @@ def simhash(text: str) -> int:
     return fingerprint
 
 #simhash similarity 
-# s_(a,b) = sigma_n(hashA =)
+# s_(a,b) = sigma_n([1 if hashA_i == hashB_i else 0] * 1/b
+
+def simhash_similarity(hashA: int, hashB: int):
+    bit_count = 0
+    for i in range(SIMHASH_BITS):
+        if ((hashA >> i) & 1) == ((hashB >> i) & 1):
+            same_bits += 1
+    
+    return same_bits / SIMHASH_BITS
