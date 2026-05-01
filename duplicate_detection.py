@@ -1,4 +1,4 @@
-from tokenizer import word_frequencies
+from tokenizer import compute_word_frequencies
 
 #partition checksum config
 NUM_PARTITIONS = 2
@@ -57,12 +57,12 @@ def simhash(text: str) -> int:
     for word, weight in word_weights.items():
         # generate a hash value for each word
         word_hash = partition_checksum(word)
-            #update components by adding the weight for which corresponding bit
-            for i in range(SIMHASH_BITS):
-                if (word_hash >> i) & 1:
-                    vector[i] += weight
-                else:
-                    vector[i] -= weight
+        #update components by adding the weight for which corresponding bit
+        for i in range(SIMHASH_BITS):
+            if (word_hash >> i) & 1:
+                vector[i] += weight
+            else:
+                vector[i] -= weight
     # gen fingeprint by setting ith bit to 1 if pos else 0
     fingerprint = 0
     for i in range(SIMHASH_BITS):
@@ -77,6 +77,6 @@ def simhash_similarity(hashA: int, hashB: int):
     bit_count = 0
     for i in range(SIMHASH_BITS):
         if ((hashA >> i) & 1) == ((hashB >> i) & 1):
-            same_bits += 1
+            bit_count += 1
     
-    return same_bits / SIMHASH_BITS
+    return bit_count / SIMHASH_BITS
