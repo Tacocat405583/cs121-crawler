@@ -15,7 +15,7 @@ def bit_length(n: int) -> int:
         length += 1
     return length
 
-FINGERPRINTS = {}
+SIMPRINTS_SET = {}
 SIMHASH_BITS = bit_length(int("9" * (NUM_PARTITIONS * WIDTH)))
 THRESHOLD = 0.9
 
@@ -80,3 +80,12 @@ def simhash_similarity(hashA: int, hashB: int):
             bit_count += 1
     
     return bit_count / SIMHASH_BITS
+
+def is_near_duplicate(tokens: list[str], url: str) -> bool:
+    sim_print = simhash(tokens)
+    for past_print in SIMPRINTS_SET.values():
+        if simhash_similarity(sim_print, past_prints):
+            return True
+    #no matches in set of sim_prints
+    SIMPRINTS_SET[url] = sim_print
+    return False
