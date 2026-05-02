@@ -171,13 +171,15 @@ def extract_next_links(url, resp) -> list:
     if len(tokens) < LOW_INFO_THRESHOLD:
         return links
     
+    # Track this page as visited (fragment stripped so #section variants collapse)
+    UNIQUE_PAGES.add(urldefrag(url)[0])
+    
     # Skip exact duplicate pages
     hash_object = hashlib.sha256(text.encode())
     hex_dig = hash_object.hexdigest()
     if hex_dig in HASHES:
         return links
-    else:
-        HASHES.add(hex_dig)
+    HASHES.add(hex_dig)
 
     # Update longest page if this page has more words than the current max
     if len(tokens) > LONGEST_PAGE["count"]:
@@ -185,9 +187,6 @@ def extract_next_links(url, resp) -> list:
         LONGEST_PAGE["count"] = len(tokens)
 
     words = compute_word_frequencies(tokens=tokens)
-
-    # Track this page as visited (fragment stripped so #section variants collapse)
-    UNIQUE_PAGES.add(urldefrag(url)[0])
 
     # Merge this page's word counts into the global tally, skipping stop words
     for word, count in words.items():
