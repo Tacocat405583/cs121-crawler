@@ -10,6 +10,7 @@ from urllib.parse import urljoin, urldefrag, urlsplit, parse_qs
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 
 from tokenizer import tokenize, compute_word_frequencies
+from duplicate_detection import is_exact_duplicate, is_near_duplicate
 
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
@@ -71,10 +72,16 @@ if is_resuming:
         LONGEST_PAGE = {"url": "", "count": 0}
 
     try:
-        with open("hashes.json", "r") as f:
-            HASHES = set(json.load(f))
+        with open("seen_pages.json", "r") as f:
+            SEEN_PAGES = set(json.load(f))
     except (FileNotFoundError, json.JSONDecodeError):
-        HASHES = set()
+        SEEN_PAGES = set()
+
+    try:
+        with open("simprints.json", "r") as f:
+            SIMPRINTS = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        SIMPRINTS = {}
 
     try:
         with open("processed_pages.json", "r") as f:
@@ -84,15 +91,16 @@ if is_resuming:
 else:
     # Fresh start 
     # Delete old JSON files to prevent data mixing
-    for stale_file in ["word_frequencies.json", "unique_pages.json", "longest_page.json", "hashes.json", "processed_pages.json"]:
+    for stale_file in ["word_frequencies.json", "unique_pages.json", "longest_page.json", "seen_pages.json", "simprints.json", "processed_pages.json"]:
         if os.path.exists(stale_file):
             os.remove(stale_file)
             
     WORD_FREQUENCIES = {}
     UNIQUE_PAGES = set()
     LONGEST_PAGE = {"url": "", "count": 0}
-    HASHES = set()
-    PROCESSED_PAGES = set()
+    SEEN_PAGES = set() #storing integer checksums
+    SIMPRINTS = {} #url-to-fingerprint mapping
+    PROCESSED_PAGES = set() #every url passed into scraper(), even if skipped
 
 PAGES_SCRAPED_THIS_SESSION = 0
 
@@ -115,8 +123,10 @@ def save_data():
         json.dump(list(UNIQUE_PAGES), f)
     with open("longest_page.json", "w") as f:
         json.dump(LONGEST_PAGE, f)
-    with open("hashes.json", "w") as f:
-        json.dump(list(HASHES), f)
+    with open("seen_pages.json", "w") as f:
+        json.dump(list(SEEN_PAGES), f)
+    with open("simprints.json", "w") as f:
+        json.dump(SIMPRINTS, f)
     with open("processed_pages.json", "w") as f:
         json.dump(list(PROCESSED_PAGES), f)
 
@@ -175,12 +185,13 @@ def extract_next_links(url, resp) -> list:
     if len(tokens) < LOW_INFO_THRESHOLD:
         return links
     
-    # Skip exact duplicate pages
-    hash_object = hashlib.sha256(text.encode())
-    hex_dig = hash_object.hexdigest()
-    if hex_dig in HASHES:
+    if is_exact_duplicate(text, SEEN_PAGES):
         return links
-    HASHES.add(hex_dig)
+
+    # NEAR DUPLICATE DETECTION TEST - find near duplicates of a document D -> O(N) comparisons
+    # We should have some threshold
+    if is_near_duplicate(tokens, urldefrag(url)[0], SIMPRINTS): #stripping fragment so that isn't counted as unique for scrolling
+        return links
 
     # Update longest page if this page has more words than the current max
     if len(tokens) > LONGEST_PAGE["count"]:
