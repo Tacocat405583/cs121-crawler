@@ -72,10 +72,16 @@ if is_resuming:
         LONGEST_PAGE = {"url": "", "count": 0}
 
     try:
-        with open("hashes.json", "r") as f:
-            HASHES = set(json.load(f))
+        with open("seen_pages.json", "r") as f:
+            SEEN_PAGES = set(json.load(f))
     except (FileNotFoundError, json.JSONDecodeError):
-        HASHES = set()
+        SEEN_PAGES = set()
+
+    try:
+        with open("simprints.json", "r") as f:
+            SIMPRINTS_SET = set(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        SIMPRINTS_SET = set()
 
     try:
         with open("processed_pages.json", "r") as f:
