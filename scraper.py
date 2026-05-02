@@ -126,7 +126,7 @@ def save_data():
     with open("seen_pages.json", "w") as f:
         json.dump(list(SEEN_PAGES), f)
     with open("simprints.json", "w") as f:
-        json.dump(list(SIMPRINTS), f)
+        json.dump(SIMPRINTS, f)
     with open("processed_pages.json", "w") as f:
         json.dump(list(PROCESSED_PAGES), f)
 
