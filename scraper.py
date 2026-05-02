@@ -173,6 +173,7 @@ def extract_next_links(url, resp) -> list:
         return links
     
     # Track this page as visited (fragment stripped so #section variants collapse)
+    # Before duplicate check per project spec: uniqueness is determined by URL only
     UNIQUE_PAGES.add(urldefrag(url)[0])
     
     # Skip exact duplicate pages
