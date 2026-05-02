@@ -4,7 +4,6 @@ import glob
 import atexit
 import json
 import warnings
-import hashlib
 from urllib.parse import urljoin, urldefrag, urlsplit, parse_qs
 
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
