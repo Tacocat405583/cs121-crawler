@@ -10,6 +10,7 @@ from urllib.parse import urljoin, urldefrag, urlsplit, parse_qs
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 
 from tokenizer import tokenize, compute_word_frequencies
+from duplicate_detection import is_exact_duplicate, is_near_duplicate
 
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
@@ -91,8 +92,9 @@ else:
     WORD_FREQUENCIES = {}
     UNIQUE_PAGES = set()
     LONGEST_PAGE = {"url": "", "count": 0}
-    HASHES = set()
-    PROCESSED_PAGES = set()
+    SEEN_PAGES = set() #storing integer checksums
+    SIMPRINTS_SET = {} #url-to-fingerprint mapping
+    PROCESSED_PAGES = set() #every url passed into scraper(), even if skipped
 
 PAGES_SCRAPED_THIS_SESSION = 0
 
@@ -114,8 +116,10 @@ def save_data():
         json.dump(list(UNIQUE_PAGES), f)
     with open("longest_page.json", "w") as f:
         json.dump(LONGEST_PAGE, f)
-    with open("hashes.json", "w") as f:
-        json.dump(list(HASHES), f)
+    with open("seen_pages.json", "w") as f:
+        json.dump(list(SEEN_PAGES), f)
+    with open("simprints.json", "w") as f:
+        json.dump(list(SIMPRINTS_SET), f)
     with open("processed_pages.json", "w") as f:
         json.dump(list(PROCESSED_PAGES), f)
 
@@ -168,16 +172,13 @@ def extract_next_links(url, resp) -> list:
     if len(tokens) < LOW_INFO_THRESHOLD:
         return links
     
-    ###LETS WORK ON DUPLICATE DETECTION ---- TEST
-    hash_object = hashlib.sha256(text.encode())
-    hex_dig = hash_object.hexdigest()
-    if hex_dig in HASHES:
+    if is_exact_duplicate(text, SEEN_PAGES):
         return links
-    else:
-        HASHES.add(hex_dig)
 
     # NEAR DUPLICATE DETECTION TEST - find near duplicates of a document D -> O(N) comparisons
     # We should have some threshold
+    if is_near_duplicate(tokens, urldefrag(url)[0]): #stripping fragment so that isn't counted as unique for scrolling
+        return links
 
     # Update longest page if this page has more words than the current max
     if len(tokens) > LONGEST_PAGE["count"]:

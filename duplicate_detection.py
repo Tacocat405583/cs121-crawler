@@ -4,9 +4,6 @@ from tokenizer import compute_word_frequencies
 NUM_PARTITIONS = 2
 WIDTH = 8
 
-# Exact duplicate
-SEEN_PAGES = set()
-
 # Near duplicate + config
 def bit_length(n: int) -> int:
     length = 0
@@ -15,7 +12,6 @@ def bit_length(n: int) -> int:
         length += 1
     return length
 
-SIMPRINTS_SET = {}
 SIMHASH_BITS = bit_length(int("9" * (NUM_PARTITIONS * WIDTH)))
 THRESHOLD = 0.9
 
@@ -31,12 +27,12 @@ def partition_checksum(text: str) -> int:
     
     return int(parsed_hash)
 
-def is_exact_duplicate(text: str) -> bool:
+def is_exact_duplicate(text: str, visited_pages: set) -> bool:
     page_checksum = partition_checksum(text)
-    if page_checksum in SEEN_PAGES:
+    if page_checksum in visited_pages:
         return True
     else:
-        SEEN_PAGES.add(page_checksum)
+        visited_pages.add(page_checksum)
         return False
 
 #def compute_word_frequencies(tokens: list[str])->dict[str,int]:
@@ -81,11 +77,11 @@ def simhash_similarity(hashA: int, hashB: int):
     
     return bit_count / SIMHASH_BITS
 
-def is_near_duplicate(tokens: list[str], url: str) -> bool:
+def is_near_duplicate(tokens: list[str], url: str, simprints_set: dict) -> bool:
     sim_print = simhash(tokens)
-    for past_print in SIMPRINTS_SET.values():
+    for past_print in simprints_set.values():
         if simhash_similarity(sim_print, past_print) >= THRESHOLD:
             return True
     #no matches in set of sim_prints
-    SIMPRINTS_SET[url] = sim_print
+    simprints_set[url] = sim_print
     return False
