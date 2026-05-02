@@ -107,12 +107,13 @@ PAGES_SCRAPED_THIS_SESSION = 0
 # Pages with fewer tokens than this are considered low information and skipped
 LOW_INFO_THRESHOLD = 50
 
-# These domains are leading to nothing usefull
+# These domains are leading to nothing useful
 BLOCKED_SUBDOMAINS = {
     "swiki.ics.uci.edu",
     "wiki.ics.uci.edu",
     "helpdesk.ics.uci.edu",
 }
+
 
 def save_data():
     # Called automatically on exit (including Ctrl+C) via atexit
@@ -129,7 +130,9 @@ def save_data():
     with open("processed_pages.json", "w") as f:
         json.dump(list(PROCESSED_PAGES), f)
 
+
 atexit.register(save_data)
+
 
 def scraper(url, resp):
     global PAGES_SCRAPED_THIS_SESSION
@@ -146,6 +149,7 @@ def scraper(url, resp):
         save_data()
         
     return valid_links
+
 
 def extract_next_links(url, resp) -> list:
     # url: the URL that was used to get the page
@@ -173,6 +177,9 @@ def extract_next_links(url, resp) -> list:
     text = soup.get_text()
     tokens = tokenize(string=text)
 
+    # Track this page as visited (fragment stripped so #section variants collapse)
+    # Before duplicate check per project spec: uniqueness is determined by URL only
+    UNIQUE_PAGES.add(urldefrag(url)[0])
 
     # Skip low information pages (login pages, empty pages, redirects, etc.)
     if len(tokens) < LOW_INFO_THRESHOLD:
@@ -188,13 +195,10 @@ def extract_next_links(url, resp) -> list:
 
     # Update longest page if this page has more words than the current max
     if len(tokens) > LONGEST_PAGE["count"]:
-        LONGEST_PAGE["url"] = urldefrag(url)[0] #dont do [1] thats the fragment
+        LONGEST_PAGE["url"] = urldefrag(url)[0] # [1] would be the fragment itself
         LONGEST_PAGE["count"] = len(tokens)
 
     words = compute_word_frequencies(tokens=tokens)
-
-    # Track this page as visited (fragment stripped so #section variants collapse)
-    UNIQUE_PAGES.add(urldefrag(url)[0])
 
     # Merge this page's word counts into the global tally, skipping stop words
     for word, count in words.items():
@@ -269,7 +273,7 @@ def is_valid(url):
         if "C=" in parsed.query and "O=" in parsed.query:
             return False
 
-        # Block DokuWiki action/index queries that were pissing me off
+        # Block DokuWiki action/index queries that generate infinite URL variants
         if "/doku.php" in parsed.path:
             bad_params = ("do=", "idx=")
             query = parsed.query.lower()
@@ -281,7 +285,7 @@ def is_valid(url):
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
-            + r"|ps|eps|tex|ppt|pptx|pps|ppsx|doc|docx|xls|xlsx|names" #pptx added
+            + r"|ps|eps|tex|ppt|pptx|pps|ppsx|doc|docx|xls|xlsx|names"
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
