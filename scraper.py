@@ -99,7 +99,7 @@ PAGES_SCRAPED_THIS_SESSION = 0
 # Pages with fewer tokens than this are considered low information and skipped
 LOW_INFO_THRESHOLD = 50
 
-# These domains are leading to nothing usefull
+# These domains are leading to nothing useful
 BLOCKED_SUBDOMAINS = {
     "swiki.ics.uci.edu",
     "wiki.ics.uci.edu",
@@ -119,7 +119,9 @@ def save_data():
     with open("processed_pages.json", "w") as f:
         json.dump(list(PROCESSED_PAGES), f)
 
+
 atexit.register(save_data)
+
 
 def scraper(url, resp):
     global PAGES_SCRAPED_THIS_SESSION
@@ -136,6 +138,7 @@ def scraper(url, resp):
         save_data()
         
     return valid_links
+
 
 def extract_next_links(url, resp) -> list:
     # url: the URL that was used to get the page
@@ -168,7 +171,7 @@ def extract_next_links(url, resp) -> list:
     if len(tokens) < LOW_INFO_THRESHOLD:
         return links
     
-    ###LETS WORK ON DUPLICATE DETECTION ---- TEST
+    # Skip exact duplicate pages
     hash_object = hashlib.sha256(text.encode())
     hex_dig = hash_object.hexdigest()
     if hex_dig in HASHES:
@@ -176,12 +179,9 @@ def extract_next_links(url, resp) -> list:
     else:
         HASHES.add(hex_dig)
 
-    # NEAR DUPLICATE DETECTION TEST - find near duplicates of a document D -> O(N) comparisons
-    # We should have some threshold
-
     # Update longest page if this page has more words than the current max
     if len(tokens) > LONGEST_PAGE["count"]:
-        LONGEST_PAGE["url"] = urldefrag(url)[0] #dont do [1] thats the fragment
+        LONGEST_PAGE["url"] = urldefrag(url)[0] # [1] would be the fragment itself
         LONGEST_PAGE["count"] = len(tokens)
 
     words = compute_word_frequencies(tokens=tokens)
@@ -262,7 +262,7 @@ def is_valid(url):
         if "C=" in parsed.query and "O=" in parsed.query:
             return False
 
-        # Block DokuWiki action/index queries that were pissing me off
+        # Block DokuWiki action/index queries that generate infinite URL variants
         if "/doku.php" in parsed.path:
             bad_params = ("do=", "idx=")
             query = parsed.query.lower()
