@@ -167,14 +167,13 @@ def extract_next_links(url, resp) -> list:
     text = soup.get_text()
     tokens = tokenize(string=text)
 
+    # Track this page as visited (fragment stripped so #section variants collapse)
+    # Before duplicate check per project spec: uniqueness is determined by URL only
+    UNIQUE_PAGES.add(urldefrag(url)[0])
 
     # Skip low information pages (login pages, empty pages, redirects, etc.)
     if len(tokens) < LOW_INFO_THRESHOLD:
         return links
-    
-    # Track this page as visited (fragment stripped so #section variants collapse)
-    # Before duplicate check per project spec: uniqueness is determined by URL only
-    UNIQUE_PAGES.add(urldefrag(url)[0])
     
     # Skip exact duplicate pages
     hash_object = hashlib.sha256(text.encode())
