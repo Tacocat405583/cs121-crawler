@@ -79,9 +79,9 @@ if is_resuming:
 
     try:
         with open("simprints.json", "r") as f:
-            SIMPRINTS_SET = set(json.load(f))
+            SIMPRINTS = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
-        SIMPRINTS_SET = set()
+        SIMPRINTS = {}
 
     try:
         with open("processed_pages.json", "r") as f:
@@ -91,7 +91,7 @@ if is_resuming:
 else:
     # Fresh start 
     # Delete old JSON files to prevent data mixing
-    for stale_file in ["word_frequencies.json", "unique_pages.json", "longest_page.json", "hashes.json", "processed_pages.json"]:
+    for stale_file in ["word_frequencies.json", "unique_pages.json", "longest_page.json", "seen_pages.json", "simprints.json", "processed_pages.json"]:
         if os.path.exists(stale_file):
             os.remove(stale_file)
             
@@ -99,7 +99,7 @@ else:
     UNIQUE_PAGES = set()
     LONGEST_PAGE = {"url": "", "count": 0}
     SEEN_PAGES = set() #storing integer checksums
-    SIMPRINTS_SET = {} #url-to-fingerprint mapping
+    SIMPRINTS = {} #url-to-fingerprint mapping
     PROCESSED_PAGES = set() #every url passed into scraper(), even if skipped
 
 PAGES_SCRAPED_THIS_SESSION = 0
@@ -126,7 +126,7 @@ def save_data():
     with open("seen_pages.json", "w") as f:
         json.dump(list(SEEN_PAGES), f)
     with open("simprints.json", "w") as f:
-        json.dump(list(SIMPRINTS_SET), f)
+        json.dump(list(SIMPRINTS), f)
     with open("processed_pages.json", "w") as f:
         json.dump(list(PROCESSED_PAGES), f)
 
@@ -190,7 +190,7 @@ def extract_next_links(url, resp) -> list:
 
     # NEAR DUPLICATE DETECTION TEST - find near duplicates of a document D -> O(N) comparisons
     # We should have some threshold
-    if is_near_duplicate(tokens, urldefrag(url)[0]): #stripping fragment so that isn't counted as unique for scrolling
+    if is_near_duplicate(tokens, urldefrag(url)[0], SIMPRINTS): #stripping fragment so that isn't counted as unique for scrolling
         return links
 
     # Update longest page if this page has more words than the current max
