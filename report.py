@@ -58,7 +58,7 @@ def main():
             parsed = urlparse(url)
             netloc = parsed.netloc.lower()
             if ":" in netloc:
-                netloc.split(":")[0]
+                netloc = netloc.split(":")[0]
             if netloc.endswith(".uci.edu") or netloc == "uci.edu":
                 subdomain_counts[netloc] += 1
         sorted_subdomains = sorted(subdomain_counts.items(), key=lambda x: x[0])
