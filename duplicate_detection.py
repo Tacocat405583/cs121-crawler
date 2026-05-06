@@ -3,16 +3,6 @@ from tokenizer import compute_word_frequencies
 #partition checksum config
 NUM_PARTITIONS = 2
 WIDTH = 8
-
-# Near duplicate + config
-def bit_length(n: int) -> int:
-    length = 0
-    while n > 0:
-        n >>= 1
-        length += 1
-    return length
-
-SIMHASH_BITS = bit_length(int("9" * (NUM_PARTITIONS * WIDTH)))
 THRESHOLD = 0.9
 
 
@@ -49,20 +39,20 @@ def is_exact_duplicate(text: str, visited_pages: set) -> bool:
 def simhash(tokens: list[str]) -> int:
     # 1: process doc into a set of features with assoc weights
     word_weights = compute_word_frequencies(tokens)
-    vector = [0] * SIMHASH_BITS
+    vector = {}
     for word, weight in word_weights.items():
         # generate a hash value for each word
         word_hash = partition_checksum(word)
         #update components by adding the weight for which corresponding bit
-        for i in range(SIMHASH_BITS):
+        for i in range(word_hash.bit_length()):
             if (word_hash >> i) & 1:
-                vector[i] += weight
+                vector[i] += vector.get(i, 0) + weight
             else:
-                vector[i] -= weight
+                vector[i] -= vector.get(i, 0) - weight
     # gen fingeprint by setting ith bit to 1 if pos else 0
     fingerprint = 0
-    for i in range(SIMHASH_BITS):
-        if vector[i] > 0:
+    for i, v in vector.items():
+        if v > 0:
             fingerprint |= (1 << i)
     return fingerprint
 
@@ -70,12 +60,13 @@ def simhash(tokens: list[str]) -> int:
 # s_(a,b) = sigma_n([1 if hashA_i == hashB_i else 0] * 1/b
 
 def simhash_similarity(hashA: int, hashB: int):
+    total_bits = max(hashA.bit_length(), hashB.bit_length(), 1)
     bit_count = 0
-    for i in range(SIMHASH_BITS):
+    for i in range(total_bits):
         if ((hashA >> i) & 1) == ((hashB >> i) & 1):
             bit_count += 1
     
-    return bit_count / SIMHASH_BITS
+    return bit_count / total_bits
 
 def is_near_duplicate(tokens: list[str], url: str, simprints_set: dict) -> bool:
     sim_print = simhash(tokens)
