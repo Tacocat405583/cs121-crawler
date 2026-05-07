@@ -1,15 +1,13 @@
 import re
-import os
-import glob
 import atexit
 import json
 import warnings
+import hashlib
 from urllib.parse import urljoin, urldefrag, urlsplit, parse_qs
 
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 
 from tokenizer import tokenize, compute_word_frequencies
-from duplicate_detection import is_exact_duplicate, is_near_duplicate
 
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
@@ -48,65 +46,22 @@ ALLOWED_DOMAINS = (
     ".stat.uci.edu"
 )
 
-# Initialize from previous run only if the frontier database exists
-is_resuming = len(glob.glob("frontier.shelve*")) > 0
+# Accumulated word counts across all crawled pages (stop words excluded)
+WORD_FREQUENCIES = {}
 
-if is_resuming:
-    try:
-        with open("word_frequencies.json", "r") as f:
-            WORD_FREQUENCIES = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        WORD_FREQUENCIES = {}
+# Set of unique defragmented URLs seen so far
+UNIQUE_PAGES = set()
 
-    try:
-        with open("unique_pages.json", "r") as f:
-            UNIQUE_PAGES = set(json.load(f))
-    except (FileNotFoundError, json.JSONDecodeError):
-        UNIQUE_PAGES = set()
+#Set of unique hashes
+HASHES = set()
 
-    try:
-        with open("longest_page.json", "r") as f:
-            LONGEST_PAGE = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        LONGEST_PAGE = {"url": "", "count": 0}
-
-    try:
-        with open("seen_pages.json", "r") as f:
-            SEEN_PAGES = set(json.load(f))
-    except (FileNotFoundError, json.JSONDecodeError):
-        SEEN_PAGES = set()
-
-    try:
-        with open("simprints.json", "r") as f:
-            SIMPRINTS = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        SIMPRINTS = {}
-
-    try:
-        with open("processed_pages.json", "r") as f:
-            PROCESSED_PAGES = set(json.load(f))
-    except (FileNotFoundError, json.JSONDecodeError):
-        PROCESSED_PAGES = set()
-else:
-    # Fresh start 
-    # Delete old JSON files to prevent data mixing
-    for stale_file in ["word_frequencies.json", "unique_pages.json", "longest_page.json", "seen_pages.json", "simprints.json", "processed_pages.json"]:
-        if os.path.exists(stale_file):
-            os.remove(stale_file)
-            
-    WORD_FREQUENCIES = {}
-    UNIQUE_PAGES = set()
-    LONGEST_PAGE = {"url": "", "count": 0}
-    SEEN_PAGES = set() #storing integer checksums
-    SIMPRINTS = {} #url-to-fingerprint mapping
-    PROCESSED_PAGES = set() #every url passed into scraper(), even if skipped
-
-PAGES_SCRAPED_THIS_SESSION = 0
+# Tracks the page with the most words: {"url": ..., "count": ...}
+LONGEST_PAGE = {"url": "", "count": 0}
 
 # Pages with fewer tokens than this are considered low information and skipped
 LOW_INFO_THRESHOLD = 50
 
-# These domains are leading to nothing useful
+# These domains are leading to nothing usefull
 BLOCKED_SUBDOMAINS = {
     "swiki.ics.uci.edu",
     "wiki.ics.uci.edu",
@@ -122,32 +77,15 @@ def save_data():
         json.dump(list(UNIQUE_PAGES), f)
     with open("longest_page.json", "w") as f:
         json.dump(LONGEST_PAGE, f)
-    with open("seen_pages.json", "w") as f:
-        json.dump(list(SEEN_PAGES), f)
-    with open("simprints.json", "w") as f:
-        json.dump(SIMPRINTS, f)
-    with open("processed_pages.json", "w") as f:
-        json.dump(list(PROCESSED_PAGES), f)
-
+    with open("hashes.json", "w") as f:
+        json.dump(list(HASHES), f)
 
 atexit.register(save_data)
 
 
 def scraper(url, resp):
-    global PAGES_SCRAPED_THIS_SESSION
-    
-    # Track every single URL passed to the scraper (even skips)
-    PROCESSED_PAGES.add(urldefrag(url)[0])
-
     links = extract_next_links(url, resp)
-    valid_links = [link for link in links if is_valid(link)]
-    
-    # Restore Batch Saving!
-    PAGES_SCRAPED_THIS_SESSION += 1
-    if PAGES_SCRAPED_THIS_SESSION % 50 == 0:
-        save_data()
-        
-    return valid_links
+    return [link for link in links if is_valid(link)]
 
 
 def extract_next_links(url, resp) -> list:
@@ -176,32 +114,35 @@ def extract_next_links(url, resp) -> list:
     text = soup.get_text()
     tokens = tokenize(string=text)
 
-    # Track this page as visited (fragment stripped so #section variants collapse)
-    # Before duplicate check per project spec: uniqueness is determined by URL only
-    UNIQUE_PAGES.add(urldefrag(url)[0])
 
     # Skip low information pages (login pages, empty pages, redirects, etc.)
     if len(tokens) < LOW_INFO_THRESHOLD:
         return links
     
-    if is_exact_duplicate(text, SEEN_PAGES):
+    ###LETS WORK ON DUPLICATE DETECTION ---- TEST
+    hash_object = hashlib.sha256(text.encode())
+    hex_dig = hash_object.hexdigest()
+    if hex_dig in HASHES:
         return links
+    else:
+        HASHES.add(hex_dig)
 
     # NEAR DUPLICATE DETECTION TEST - find near duplicates of a document D -> O(N) comparisons
     # We should have some threshold
-    if is_near_duplicate(tokens, urldefrag(url)[0], SIMPRINTS): #stripping fragment so that isn't counted as unique for scrolling
-        return links
 
     # Update longest page if this page has more words than the current max
     if len(tokens) > LONGEST_PAGE["count"]:
-        LONGEST_PAGE["url"] = urldefrag(url)[0] # [1] would be the fragment itself
+        LONGEST_PAGE["url"] = urldefrag(url)[0] #dont do [1] thats the fragment
         LONGEST_PAGE["count"] = len(tokens)
 
     words = compute_word_frequencies(tokens=tokens)
 
+    # Track this page as visited (fragment stripped so #section variants collapse)
+    UNIQUE_PAGES.add(urldefrag(url)[0])
+
     # Merge this page's word counts into the global tally, skipping stop words
     for word, count in words.items():
-        if word not in STOP_WORDS:
+        if word not in STOP_WORDS and len(word)>=2 and not word.isdigit():
             WORD_FREQUENCIES[word] = WORD_FREQUENCIES.get(word, 0) + count
 
     # Collect all anchor hrefs, resolve to absolute URLs, strip fragments
@@ -252,14 +193,6 @@ def is_valid(url):
         # Block WordPress date archive URLs (e.g. /2019, /2019/04, /2019/04/04) for acoi
         if re.search(r"/\d{4}(/\d{2}){0,2}$", parsed.path):
             return False
-        
-        # Block dash-separated date archive URLs (e.g. /2013-09, /2012-08)
-        if re.search(r"/\d{4}-\d{2}$", parsed.path):
-            return False
-        
-        # Block calendar export URLs (no useful content)
-        if "ical=1" in parsed.query:
-            return False
 
         # Long query strings or repeated parameters indicate a URL trap
         if len(parsed.query) > 200:
@@ -272,7 +205,7 @@ def is_valid(url):
         if "C=" in parsed.query and "O=" in parsed.query:
             return False
 
-        # Block DokuWiki action/index queries that generate infinite URL variants
+        # Block DokuWiki action/index queries that were pissing me off
         if "/doku.php" in parsed.path:
             bad_params = ("do=", "idx=")
             query = parsed.query.lower()
@@ -284,7 +217,7 @@ def is_valid(url):
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
-            + r"|ps|eps|tex|ppt|pptx|pps|ppsx|doc|docx|xls|xlsx|names"
+            + r"|ps|eps|tex|ppt|pptx|pps|ppsx|doc|docx|xls|xlsx|names" #pptx added
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
