@@ -3,6 +3,7 @@ import atexit
 import json
 import warnings
 import hashlib
+import glob
 from urllib.parse import urljoin, urldefrag, urlsplit, parse_qs
 
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
@@ -66,7 +67,17 @@ BLOCKED_SUBDOMAINS = {
     "swiki.ics.uci.edu",
     "wiki.ics.uci.edu",
     "helpdesk.ics.uci.edu",
+    "grape.ics.uci.edu",
 }
+
+
+###
+if glob.glob("frontier.shelve*"):
+    try:
+        with open("hashes.json") as f:
+            HASHES = set(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
 
 
 def save_data():
@@ -110,6 +121,9 @@ def extract_next_links(url, resp) -> list:
 
     soup = BeautifulSoup(resp.raw_response.content, "lxml")
 
+    for tag in soup(["script", "style"]):
+        tag.decompose()
+
     # Extract visible text and count word frequencies for this page
     text = soup.get_text()
     tokens = tokenize(string=text)
@@ -126,9 +140,6 @@ def extract_next_links(url, resp) -> list:
         return links
     else:
         HASHES.add(hex_dig)
-
-    # NEAR DUPLICATE DETECTION TEST - find near duplicates of a document D -> O(N) comparisons
-    # We should have some threshold
 
     # Update longest page if this page has more words than the current max
     if len(tokens) > LONGEST_PAGE["count"]:
