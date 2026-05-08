@@ -62,12 +62,12 @@ LONGEST_PAGE = {"url": "", "count": 0}
 # Pages with fewer tokens than this are considered low information and skipped
 LOW_INFO_THRESHOLD = 50
 
-# These domains are leading to nothing usefull
+# These domains are leading to nothing usefull <- change this
 BLOCKED_SUBDOMAINS = {
     "swiki.ics.uci.edu",
     "wiki.ics.uci.edu",
     "helpdesk.ics.uci.edu",
-    "grape.ics.uci.edu",
+    #"grape.ics.uci.edu",
 }
 
 
@@ -196,14 +196,16 @@ def is_valid(url):
         if "/group:support" in parsed.path:
             return False
 
-        # Avoid paginated archives beyond page 20 (low-value duplicate content)
-        page_match = re.search(r"/page/(\d+)", parsed.path)
-        if page_match and int(page_match.group(1)) > 20:
-            return False
+        ### LOSING SINCE WE DO NOT WANT ARE LESSENING GRIP ON BLOCKING
 
-        # Block WordPress date archive URLs (e.g. /2019, /2019/04, /2019/04/04) for acoi
-        if re.search(r"/\d{4}(/\d{2}){0,2}$", parsed.path):
-            return False
+        # # Avoid paginated archives beyond page 20 (low-value duplicate content)
+        # page_match = re.search(r"/page/(\d+)", parsed.path)
+        # if page_match and int(page_match.group(1)) > 20:
+        #     return False
+
+        # # Block WordPress date archive URLs (e.g. /2019, /2019/04, /2019/04/04) for acoi
+        # if re.search(r"/\d{4}(/\d{2}){0,2}$", parsed.path):
+        #     return False
 
         # Long query strings or repeated parameters indicate a URL trap
         if len(parsed.query) > 200:
