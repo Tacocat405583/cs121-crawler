@@ -119,6 +119,10 @@ def extract_next_links(url, resp) -> list:
     if len(resp.raw_response.content) > 10000000:
         return links
 
+    # Skip Atom/RSS feed responses — get_text() on XML feed produces garbage tokens
+    content_type = resp.raw_response.headers.get("Content-Type", "")
+    is_feed = any(t in content_type for t in ("xml", "atom", "rss"))
+
     soup = BeautifulSoup(resp.raw_response.content, "lxml")
 
     for tag in soup(["script", "style"]):
@@ -128,12 +132,10 @@ def extract_next_links(url, resp) -> list:
     text = soup.get_text()
     tokens = tokenize(string=text)
 
-
     # Skip low information pages (login pages, empty pages, redirects, etc.)
     if len(tokens) < LOW_INFO_THRESHOLD:
         return links
-    
-    ###LETS WORK ON DUPLICATE DETECTION ---- TEST
+
     hash_object = hashlib.sha256(text.encode())
     hex_dig = hash_object.hexdigest()
     if hex_dig in HASHES:
@@ -141,20 +143,21 @@ def extract_next_links(url, resp) -> list:
     else:
         HASHES.add(hex_dig)
 
-    # Update longest page if this page has more words than the current max
-    if len(tokens) > LONGEST_PAGE["count"]:
-        LONGEST_PAGE["url"] = urldefrag(url)[0] #dont do [1] thats the fragment
-        LONGEST_PAGE["count"] = len(tokens)
-
-    words = compute_word_frequencies(tokens=tokens)
-
     # Track this page as visited (fragment stripped so #section variants collapse)
     UNIQUE_PAGES.add(urldefrag(url)[0])
 
-    # Merge this page's word counts into the global tally, skipping stop words
-    for word, count in words.items():
-        if word not in STOP_WORDS and len(word)>=2 and not word.isdigit():
-            WORD_FREQUENCIES[word] = WORD_FREQUENCIES.get(word, 0) + count
+    if not is_feed:
+        # Update longest page if this page has more words than the current max
+        if len(tokens) > LONGEST_PAGE["count"]:
+            LONGEST_PAGE["url"] = urldefrag(url)[0]
+            LONGEST_PAGE["count"] = len(tokens)
+
+        words = compute_word_frequencies(tokens=tokens)
+
+        # Merge this page's word counts into the global tally, skipping stop words
+        for word, count in words.items():
+            if word not in STOP_WORDS and len(word) >= 2 and word.isalpha():
+                WORD_FREQUENCIES[word] = WORD_FREQUENCIES.get(word, 0) + count
 
     # Collect all anchor hrefs, resolve to absolute URLs, strip fragments
     for tag in soup.find_all("a"):
