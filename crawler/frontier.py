@@ -123,7 +123,8 @@ class Frontier(object):
                 return url
 
     def _get_domain(self, url):
-        return urlsplit(url).netloc
+        parts = urlsplit(url).netloc.split(".")
+        return ".".join(parts[-3:])
 
     def _shelve_write(self, key, value):
         # Windows dbm.dumb briefly locks shelve files on each write; retry on PermissionError
