@@ -225,6 +225,12 @@ def is_valid(url):
         if "/group:support" in parsed.path:
             return False
 
+        if "/doku.php" in parsed.path:
+            bad_params = ("do=", "idx=")
+            query = parsed.query.lower()
+            if any(p in query for p in bad_params):
+                return False
+
         # Block date archive URLs (e.g. /day/2023-03-01, /2019/08) — calendar traps
         if re.search(r"/day/\d{4}-\d{2}-\d{2}", parsed.path):
             return False
