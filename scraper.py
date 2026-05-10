@@ -143,13 +143,13 @@ def extract_next_links(url, resp) -> list:
     else:
         HASHES.add(hex_dig)
 
-    # Track this page as visited (fragment stripped so #section variants collapse)
-    UNIQUE_PAGES.add(urldefrag(url)[0])
+    # Track this page as visited (query and fragment stripped — only domain + path matter)
+    UNIQUE_PAGES.add(urlsplit(url)._replace(query="", fragment="").geturl())
 
     if not is_feed:
         # Update longest page if this page has more words than the current max
         if len(tokens) > LONGEST_PAGE["count"]:
-            LONGEST_PAGE["url"] = urldefrag(url)[0]
+            LONGEST_PAGE["url"] = urlsplit(url)._replace(query="", fragment="").geturl()
             LONGEST_PAGE["count"] = len(tokens)
 
         words = compute_word_frequencies(tokens=tokens)
@@ -219,6 +219,10 @@ def is_valid(url):
 
         # Block Apache directory listing sort variants (same content, different order)
         if "C=" in parsed.query and "O=" in parsed.query:
+            return False
+
+        # Block wiki version history URLs (same page at different revisions)
+        if "version" in parse_qs(parsed.query):
             return False
 
         # Block DokuWiki action/index queries that were pissing me off

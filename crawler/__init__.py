@@ -10,7 +10,7 @@ class Crawler(object):
         self.workers = list()
         self.worker_factory = worker_factory
 
-    def start_async(self):
+    def start_async(self): #THIS SPINS THE MULTIPLE WORKERS
         self.workers = [
             self.worker_factory(worker_id, self.config, self.frontier)
             for worker_id in range(self.config.threads_count)]

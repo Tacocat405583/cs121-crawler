@@ -125,6 +125,8 @@ class Frontier(object):
 
     def add_url(self, url):
         url = normalize(url)
+        # strip query string — only domain + path matter for uniqueness
+        url = urlsplit(url)._replace(query="", fragment="").geturl()
         urlhash = get_urlhash(url)
         # NEW: wrap in condition lock so two threads can't add the same URL simultaneously.
         # Appends to the domain's deque instead of the old flat list.
