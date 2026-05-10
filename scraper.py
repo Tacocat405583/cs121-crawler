@@ -64,6 +64,13 @@ LONGEST_PAGE = {"url": "", "count": 0}
 # Pages with fewer tokens than this are considered low information and skipped
 LOW_INFO_THRESHOLD = 50
 
+# Subdomains to skip entirely
+BLOCKED_SUBDOMAINS = {
+    "wiki.ics.uci.edu",
+    "swiki.ics.uci.edu",
+    "coronavirustwittermap.ics.uci.edu",
+}
+
 # Protects shared globals (HASHES, UNIQUE_PAGES, LONGEST_PAGE, WORD_FREQUENCIES) across threads
 SCRAPER_LOCK = Lock()
 
@@ -72,6 +79,21 @@ if glob.glob("frontier.shelve*") and "--restart" not in sys.argv:
     try:
         with open("hashes.json") as f:
             HASHES = set(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+    try:
+        with open("unique_pages.json") as f:
+            UNIQUE_PAGES = set(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+    try:
+        with open("word_frequencies.json") as f:
+            WORD_FREQUENCIES = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+    try:
+        with open("longest_page.json") as f:
+            LONGEST_PAGE = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         pass
 
@@ -164,9 +186,12 @@ def extract_next_links(url, resp) -> list:
     for tag in soup.find_all("a"):
         href = tag.get("href")
         if href:
-            absolute = urljoin(url, href)
-            absolute = urldefrag(absolute)[0]
-            links.append(absolute)
+            try:
+                absolute = urljoin(url, href)
+                absolute = urldefrag(absolute)[0]
+                links.append(absolute)
+            except ValueError:
+                pass
 
     return links
 
@@ -192,9 +217,18 @@ def is_valid(url):
         # Reject URLs outside the allowed domains
         if not any(parsed.netloc.endswith(domain) for domain in ALLOWED_DOMAINS):
             return False
-        
+
+        if parsed.netloc in BLOCKED_SUBDOMAINS:
+            return False
+
         # This is to skip pages with insufficient access in doku.php
         if "/group:support" in parsed.path:
+            return False
+
+        # Block date archive URLs (e.g. /day/2023-03-01, /2019/08) — calendar traps
+        if re.search(r"/day/\d{4}-\d{2}-\d{2}", parsed.path):
+            return False
+        if re.search(r"/\d{4}/\d{2}(/\d{2})?$", parsed.path):
             return False
 
         # Long query strings or repeated parameters indicate a URL trap
@@ -208,13 +242,6 @@ def is_valid(url):
         if "C=" in parsed.query and "O=" in parsed.query:
             return False
 
-        # Block DokuWiki action/index queries that were pissing me off
-        if "/doku.php" in parsed.path:
-            bad_params = ("do=", "idx=")
-            query = parsed.query.lower()
-            if any(p in query for p in bad_params):
-                return False
-
         # Reject static asset and binary file extensions
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
@@ -223,7 +250,7 @@ def is_valid(url):
             + r"|ps|eps|tex|ppt|pptx|pps|ppsx|doc|docx|xls|xlsx|names" #pptx added
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
-            + r"|thmx|mso|arff|rtf|jar|csv"
+            + r"|thmx|mso|arff|rtf|jar|csv|txt"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
 
     except TypeError:

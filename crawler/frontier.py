@@ -125,32 +125,36 @@ class Frontier(object):
     def _get_domain(self, url):
         return urlsplit(url).netloc
 
+    def _shelve_write(self, key, value):
+        # Windows dbm.dumb briefly locks shelve files on each write; retry on PermissionError
+        for attempt in range(5):
+            try:
+                self.save[key] = value
+                self.save.sync()
+                return
+            except PermissionError:
+                if attempt < 4:
+                    time.sleep(0.05)
+                else:
+                    raise
+
     def add_url(self, url):
         url = normalize(url)
         # strip query string — only domain + path matter for uniqueness
         url = urlsplit(url)._replace(query="", fragment="").geturl()
         urlhash = get_urlhash(url)
-        # NEW: wrap in condition lock so two threads can't add the same URL simultaneously.
-        # Appends to the domain's deque instead of the old flat list.
-        # notify_all() wakes any worker sleeping in get_tbd_url waiting for new URLs.
         with self.condition:
             if urlhash not in self.save:
-                self.save[urlhash] = (url, False)
-                self.save.sync()
+                self._shelve_write(urlhash, (url, False))
                 self.domain_queues[self._get_domain(url)].append(url)
                 self.condition.notify_all()
 
     def mark_url_complete(self, url):
         urlhash = get_urlhash(url)
-        # NEW: wrap in condition lock so active_count stays consistent across threads.
-        # active_count -= 1 tells get_tbd_url that one fewer worker is mid-download,
-        # allowing it to return None and shut down when queues are truly empty.
-        # notify_all() wakes workers that may be waiting on the empty-queue check.
         with self.condition:
             if urlhash not in self.save:
                 self.logger.error(
                     f"Completed url {url}, but have not seen it before.")
-            self.save[urlhash] = (url, True)
-            self.save.sync()
+            self._shelve_write(urlhash, (url, True))
             self.active_count -= 1
             self.condition.notify_all()
