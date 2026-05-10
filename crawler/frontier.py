@@ -1,9 +1,9 @@
 import os
+import glob
 import shelve
 import time
 
-from threading import Thread, RLock, Condition
-from queue import Queue, Empty
+from threading import Condition
 
 from urllib.parse import urldefrag, urlsplit
 
@@ -25,16 +25,18 @@ class Frontier(object):
         self.condition = Condition()
         self.active_count = 0
         
-        if not os.path.exists(self.config.save_file) and not restart:
+        existing_files = glob.glob(self.config.save_file + "*")
+        if not existing_files and not restart:
             # Save file does not exist, but request to load save.
             self.logger.info(
                 f"Did not find save file {self.config.save_file}, "
                 f"starting from seed.")
-        elif os.path.exists(self.config.save_file) and restart:
-            # Save file does exists, but request to start from seed.
+        elif existing_files and restart:
+            # Save file exists, but request to start from seed — delete all shelve files.
             self.logger.info(
                 f"Found save file {self.config.save_file}, deleting it.")
-            os.remove(self.config.save_file)
+            for f in existing_files:
+                os.remove(f)
         # Load existing save file, or create one if it does not exist.
         self.save = shelve.open(self.config.save_file)
         if restart:

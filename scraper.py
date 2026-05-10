@@ -1,9 +1,11 @@
 import re
+import sys
 import atexit
 import json
 import warnings
 import hashlib
 import glob
+from threading import Lock
 from urllib.parse import urljoin, urldefrag, urlsplit, parse_qs
 
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
@@ -62,17 +64,11 @@ LONGEST_PAGE = {"url": "", "count": 0}
 # Pages with fewer tokens than this are considered low information and skipped
 LOW_INFO_THRESHOLD = 50
 
-# These domains are leading to nothing usefull <- change this
-BLOCKED_SUBDOMAINS = {
-    "swiki.ics.uci.edu",
-    "wiki.ics.uci.edu",
-    "helpdesk.ics.uci.edu",
-    #"grape.ics.uci.edu",
-}
-
+# Protects shared globals (HASHES, UNIQUE_PAGES, LONGEST_PAGE, WORD_FREQUENCIES) across threads
+SCRAPER_LOCK = Lock()
 
 ###
-if glob.glob("frontier.shelve*"):
+if glob.glob("frontier.shelve*") and "--restart" not in sys.argv:
     try:
         with open("hashes.json") as f:
             HASHES = set(json.load(f))
@@ -138,26 +134,31 @@ def extract_next_links(url, resp) -> list:
 
     hash_object = hashlib.sha256(text.encode())
     hex_dig = hash_object.hexdigest()
-    if hex_dig in HASHES:
-        return links
-    else:
+
+    # Atomic check-and-add: two threads must not both pass the duplicate check for the same page
+    with SCRAPER_LOCK:
+        if hex_dig in HASHES:
+            return links
         HASHES.add(hex_dig)
 
-    # Track this page as visited (query and fragment stripped — only domain + path matter)
-    UNIQUE_PAGES.add(urlsplit(url)._replace(query="", fragment="").geturl())
+    # Word frequency computation is CPU-only — no shared state, so done outside the lock
+    words = compute_word_frequencies(tokens=tokens) if not is_feed else {}
 
-    if not is_feed:
-        # Update longest page if this page has more words than the current max
-        if len(tokens) > LONGEST_PAGE["count"]:
-            LONGEST_PAGE["url"] = urlsplit(url)._replace(query="", fragment="").geturl()
-            LONGEST_PAGE["count"] = len(tokens)
+    # Update all shared globals together under one lock acquisition
+    with SCRAPER_LOCK:
+        # Track this page as visited (query and fragment stripped — only domain + path matter)
+        UNIQUE_PAGES.add(urlsplit(url)._replace(query="", fragment="").geturl())
 
-        words = compute_word_frequencies(tokens=tokens)
+        if not is_feed:
+            # Update longest page if this page has more words than the current max
+            if len(tokens) > LONGEST_PAGE["count"]:
+                LONGEST_PAGE["url"] = urlsplit(url)._replace(query="", fragment="").geturl()
+                LONGEST_PAGE["count"] = len(tokens)
 
-        # Merge this page's word counts into the global tally, skipping stop words
-        for word, count in words.items():
-            if word not in STOP_WORDS and len(word) >= 2 and word.isalpha():
-                WORD_FREQUENCIES[word] = WORD_FREQUENCIES.get(word, 0) + count
+            # Merge this page's word counts into the global tally, skipping stop words
+            for word, count in words.items():
+                if word not in STOP_WORDS and len(word) >= 2 and word.isalpha():
+                    WORD_FREQUENCIES[word] = WORD_FREQUENCIES.get(word, 0) + count
 
     # Collect all anchor hrefs, resolve to absolute URLs, strip fragments
     for tag in soup.find_all("a"):
@@ -192,23 +193,9 @@ def is_valid(url):
         if not any(parsed.netloc.endswith(domain) for domain in ALLOWED_DOMAINS):
             return False
         
-        if parsed.netloc in BLOCKED_SUBDOMAINS:
-            return False
-        
         # This is to skip pages with insufficient access in doku.php
         if "/group:support" in parsed.path:
             return False
-
-        ### LOSING SINCE WE DO NOT WANT ARE LESSENING GRIP ON BLOCKING
-
-        # # Avoid paginated archives beyond page 20 (low-value duplicate content)
-        # page_match = re.search(r"/page/(\d+)", parsed.path)
-        # if page_match and int(page_match.group(1)) > 20:
-        #     return False
-
-        # # Block WordPress date archive URLs (e.g. /2019, /2019/04, /2019/04/04) for acoi
-        # if re.search(r"/\d{4}(/\d{2}){0,2}$", parsed.path):
-        #     return False
 
         # Long query strings or repeated parameters indicate a URL trap
         if len(parsed.query) > 200:
@@ -219,10 +206,6 @@ def is_valid(url):
 
         # Block Apache directory listing sort variants (same content, different order)
         if "C=" in parsed.query and "O=" in parsed.query:
-            return False
-
-        # Block wiki version history URLs (same page at different revisions)
-        if "version" in parse_qs(parsed.query):
             return False
 
         # Block DokuWiki action/index queries that were pissing me off
