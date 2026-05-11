@@ -240,23 +240,37 @@ def is_valid(url):
         # This is to skip pages with insufficient access in doku.php
         if "/group:support" in parsed.path:
             return False
-
-        # Block date archive URLs (e.g. /day/2023-03-01, /2019/08) — calendar traps
-        if re.search(r"/day/\d{4}-\d{2}-\d{2}", parsed.path):
+        
+        # Block WordPress pagination traps beyond page 5
+        page_match = re.search(r"/page/(\d+)", parsed.path)
+        if page_match and int(page_match.group(1)) > 5:
             return False
-        if re.search(r"/\d{4}/\d{2}(/\d{2})?$", parsed.path):
+        
+        # Block WordPress/calendar date archive URLs - these are traps
+        # Catches /2019, /2019/04, /2019/04/04, /day/2023-03-01
+        if re.search(r"/\d{4}(/\d{2}){0,2}/?$", parsed.path):
+            return False
+        if re.search(r"/day/\d{4}-\d{2}-\d{2}", parsed.path):
             return False
 
         # Long query strings or repeated parameters indicate a URL trap
         if len(parsed.query) > 200:
             return False
-        #appeared more than once in the query string
+        
+        # Repeated parameter values indicate a URL trap
         if any(len(v) > 1 for v in parse_qs(parsed.query).values()):
             return False
 
         # Block Apache directory listing sort variants (same content, different order)
         if "C=" in parsed.query and "O=" in parsed.query:
             return False
+        
+        # Block DokuWiki action/index queries that generate low-value pages
+        if "/doku.php" in parsed.path:
+            bad_params = ("do=", "idx=")
+            query = parsed.query.lower()
+            if any(p in query for p in bad_params):
+                return False
 
         # Reject static asset and binary file extensions
         return not re.match(
