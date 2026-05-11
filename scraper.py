@@ -69,6 +69,7 @@ BLOCKED_SUBDOMAINS = {
     "wiki.ics.uci.edu",
     "swiki.ics.uci.edu",
     "coronavirustwittermap.ics.uci.edu",
+    "flamingo.ics.uci.edu",
 }
 
 # Protects shared globals (HASHES, UNIQUE_PAGES, LONGEST_PAGE, WORD_FREQUENCIES) across threads
@@ -225,6 +226,10 @@ def is_valid(url):
         if "/group:support" in parsed.path:
             return False
 
+        # Block grape file attachment paths — binary downloads, not crawlable pages
+        if any(p in parsed.path for p in ("/raw-attachment/", "/zip-attachment/", "/attachment/")):
+            return False
+
         if "/doku.php" in parsed.path:
             bad_params = ("do=", "idx=")
             query = parsed.query.lower()
@@ -260,7 +265,7 @@ def is_valid(url):
             + r"|ps|eps|tex|ppt|pptx|pps|ppsx|doc|docx|xls|xlsx|names" #pptx added
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
-            + r"|thmx|mso|arff|rtf|jar|csv|txt"
+            + r"|thmx|mso|arff|rtf|jar|csv|txt|sql|svg|sh|java|war|apk"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
 
     except TypeError:
