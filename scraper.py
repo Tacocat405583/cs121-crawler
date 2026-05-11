@@ -252,6 +252,21 @@ def is_valid(url):
             return False
         if re.search(r"/day/\d{4}-\d{2}-\d{2}", parsed.path):
             return False
+        
+        # Block daily event archive URLs (e.g. /events/2021-11-14/)
+        # and monthly event archives (e.g. /events/month/2026-03/)
+        if re.search(r"/\d{4}-\d{2}-\d{2}/?$", parsed.path):
+            return False
+        if re.search(r"/month/\d{4}-\d{2}/?$", parsed.path):
+            return False
+        
+        # Block WordPress tag archive listing pages
+        if "/tag/" in parsed.path:
+            return False
+        
+        # Block grape wiki zip-attachment downloads
+        if "/zip-attachment/" in parsed.path:
+            return False
 
         # Long query strings or repeated parameters indicate a URL trap
         if len(parsed.query) > 200:
@@ -259,6 +274,19 @@ def is_valid(url):
         
         # Repeated parameter values indicate a URL trap
         if any(len(v) > 1 for v in parse_qs(parsed.query).values()):
+            return False
+        
+        # Block WordPress Events Calendar plugin date navigation
+        if "tribe-bar-date" in parsed.query:
+            return False
+        
+        # Block calendar export query params (ical, outlook-ical)
+        ical_params = {"ical", "outlook-ical"}
+        if any(p in parse_qs(parsed.query) for p in ical_params):
+            return False
+        
+        # Block WordPress social share query params
+        if "share" in parse_qs(parsed.query):
             return False
 
         # Block Apache directory listing sort variants (same content, different order)
