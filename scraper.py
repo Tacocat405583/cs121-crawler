@@ -64,14 +64,6 @@ LONGEST_PAGE = {"url": "", "count": 0}
 # Pages with fewer tokens than this are considered low information and skipped
 LOW_INFO_THRESHOLD = 50
 
-# Subdomains to skip entirely
-BLOCKED_SUBDOMAINS = {
-    "wiki.ics.uci.edu",
-    "swiki.ics.uci.edu",
-    "coronavirustwittermap.ics.uci.edu",
-    "flamingo.ics.uci.edu",
-}
-
 # Protects shared globals (HASHES, UNIQUE_PAGES, LONGEST_PAGE, WORD_FREQUENCIES) across threads
 SCRAPER_LOCK = Lock()
 
@@ -233,9 +225,6 @@ def is_valid(url):
 
         # Reject URLs outside the allowed domains
         if not any(parsed.netloc.endswith(domain) for domain in ALLOWED_DOMAINS):
-            return False
-
-        if parsed.netloc in BLOCKED_SUBDOMAINS:
             return False
 
         # This is to skip pages with insufficient access in doku.php
